@@ -1,0 +1,167 @@
+import pygame
+import random
+
+pygame.init()
+
+clock = pygame.time.Clock()
+fps = 60
+
+# Game window
+tile_size = 50
+cols = 20
+margin = 100
+screen_width = tile_size * cols
+screen_height = (tile_size * cols) + margin
+
+screen = pygame.display.set_mode((screen_width, screen_height))
+pygame.display.set_caption('Endless Runner')
+
+# Load images
+bg_img = pygame.image.load(r'C:\Users\sheeb\OneDrive\Desktop\Documents\sky.jpg')
+bg_img = pygame.transform.scale(bg_img, (screen_width, screen_height - margin))
+blob_img = pygame.image.load(r'C:\Users\sheeb\OneDrive\Desktop\Documents\blob.jpg')
+blob_img = pygame.transform.scale(blob_img, (tile_size, tile_size))
+coin_img = pygame.image.load(r'C:\Users\sheeb\OneDrive\Desktop\Documents\coin.jpg')
+man_img = pygame.image.load(r'C:\Users\sheeb\OneDrive\Desktop\Documents\man.jpg')
+man_img = pygame.transform.scale(man_img, (tile_size, int(tile_size * 1.5)))
+
+# Define game variables
+score = 0
+gravity = 1
+
+# Define colors
+white = (255, 255, 255)
+green = (144, 201, 120)
+
+font = pygame.font.SysFont('Futura', 24)
+
+# Player class
+class Player():
+    def __init__(self, x, y):
+        self.rect = pygame.Rect(x, y, tile_size, int(tile_size * 1.5))
+        self.vel_y = 0
+        self.jump = False
+        self.in_air = True
+
+    def move(self):
+        dx = 0
+        dy = 0
+
+        # Get key presses
+        key = pygame.key.get_pressed()
+        if key[pygame.K_UP] and not self.jump and not self.in_air:
+            self.vel_y = -15
+            self.jump = True
+            self.in_air = True
+        if key[pygame.K_LEFT] and self.rect.left > 0:
+            dx = -5
+        if key[pygame.K_RIGHT] and self.rect.right < screen_width:
+            dx = 5
+
+        # Gravity
+        self.vel_y += gravity
+        if self.vel_y > 10:
+            self.vel_y = 10
+        dy += self.vel_y
+
+        # Update player position
+        self.rect.x += dx
+        self.rect.y += dy
+
+        # Collision with ground
+        if self.rect.bottom > screen_height - margin:
+            self.rect.bottom = screen_height - margin
+            dy = 0
+            self.in_air = False
+
+        # Draw the player
+        screen.blit(man_img, self.rect.topleft)
+
+        return dx, dy
+
+# Obstacle class
+class Obstacle(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = blob_img
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+
+    def update(self):
+        self.rect.x -= 5
+        if self.rect.right < 0:
+            self.kill()
+
+# Coin class
+class Coin(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = coin_img
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+
+    def update(self):
+        self.rect.x -= 5
+        if self.rect.right < 0:
+            self.kill()
+
+# Create sprite groups
+obstacle_group = pygame.sprite.Group()
+coin_group = pygame.sprite.Group()
+player = Player(tile_size * 2, screen_height - margin - tile_size * 1.5)
+
+# Function to draw text
+def draw_text(text, font, text_col, x, y):
+    img = font.render(text, True, text_col)
+    screen.blit(img, (x, y))
+
+# Main game loop
+run = True
+while run:
+
+    clock.tick(fps)
+
+    # Draw background
+    screen.fill(green)
+    screen.blit(bg_img, (0, 0))
+
+    # Draw player
+    dx, dy = player.move()
+
+    # Update and draw groups
+    obstacle_group.update()
+    obstacle_group.draw(screen)
+    coin_group.update()
+    coin_group.draw(screen)
+
+    # Check for collision with obstacles
+    if pygame.sprite.spritecollide(player, obstacle_group, False):
+        # Reset player position upon collision
+        player.rect.x = tile_size * 2
+        player.rect.y = screen_height - margin - tile_size * 1.5
+
+    # Check for collision with coins
+    if pygame.sprite.spritecollide(player, coin_group, True):
+        score += 1
+
+    # Draw the score
+    draw_text(f'Score: {score}', font, white, tile_size, screen_height - 60)
+
+    # Generate new obstacles and coins
+    if random.randint(1, 100) == 1:
+        obstacle_group.add(Obstacle(screen_width, screen_height - margin - tile_size))
+    if random.randint(1, 30) == 1:
+        coin_group.add(Coin(screen_width, screen_height - margin - tile_size * 2))
+
+    # Event handler
+    for event in pygame.event.get():
+        # Quit game
+        if event.type == pygame.QUIT:
+            run = False
+
+    # Update game display window
+    pygame.display.update()
+
+pygame.quit()
